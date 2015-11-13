@@ -19,26 +19,30 @@ from ChebyshevInterpolation import ChebInterpXdir
 
 
 def FourierChebyshevInterpolation2D(f,ff):
+    N = ff.shape
+    n = f.shape
     indices = []
-    for i in range(n+1):
-	index = int(i*(float(m-1)/float(n)))
+    for i in range(n[1]):
+	index = int(i*(float(N[1]-1)/float(n[1]-1)))
 	indices += [index]
-	ff[:,index] = ChebInterpXdir(n, m, x, u, c ,f[:,i], ff[:,index])
+	ff[:,index] = ChebInterpXdir(n[0]-1, N[0], x, u, c ,f[:,i], ff[:,index])
 
-    for i in range(m):
+    for i in range(N[0]):
 	ff[i,:] = FourierInterpolation1D(ff[i,indices[:-1]], ff[i,:])
     return ff	
 
 def FourierChebyshevInterpolation3D(f,ff):
+    N = ff.shape
+    n = f.shape
     indices = []
-    for i in range(n):
-	index = int(i*(float(m-1)/float(n)))
+    for i in range(n[2]):
+	index = int(i*(float(N[2]-1)/float(n[2]-1)))
 	indices += [index]
 	ff[:,:,index] = FourierChebyshevInterpolation2D(f[:,:,i], ff[:,:,index])
 
-    for i in range(m):
-	for j in range(m):
-	    ff[i, j, :] = FourierInterpolation1D(ff[i,j,indices], ff[i,j,:])
+    for i in range(N[0]):
+	for j in range(N[1]):
+	    ff[i, j, :] = FourierInterpolation1D(ff[i,j,indices[:-1]], ff[i,j,:])
     return ff	
 
 
@@ -46,21 +50,25 @@ def FourierChebyshevInterpolation3D(f,ff):
 if __name__ == "__main__":
 
     test = "3D"
-    n = 2**6 # Number of nodes for the coarse grid
-    m = 2**9 # Number of nodes for the finer grid
 
-    points = arange(n+1)
-
-    u = cos(pi*points/n)       # Grid points in x-direction
-    v = linspace(0,2*pi,n+1)   # Grid points in y-direction
-    x = linspace(-1.,1.,m)
-    y = linspace(0,2*pi,m+1)
-    
-    c = ones(n-1)
-    c = hstack([.5,c,.5])
-    c *= (-1)**points
-    
     if test == "2D":
+	
+	m = 5; M = 8 # Number of nodes for the coarse and the finer grid
+	n = array([2**m, 2**(m-1)])
+	N = array([2**M, 2**(M-1)])
+	
+	points = arange(n[0]+1)
+
+	u = cos(pi*points/n[0])       # Grid points in x-direction
+	v = linspace(0,2*pi,n[1]+1)   # Grid points in y-direction
+	
+	x = linspace(-1.,1.,N[0])
+	y = linspace(0,2*pi,N[1]+1)
+
+	c = ones(n[0]-1)
+	c = hstack([.5,c,.5])
+	c *= (-1)**points
+
 	# Create the mesh
 	T = meshgrid(u,v, indexing='ij')             # Coarse mesh
 	X = meshgrid(x,y, indexing='ij')             # Finer mesh
@@ -68,7 +76,7 @@ if __name__ == "__main__":
 	fn = sin(T[0])*cos(T[1]) # Coarse f
 	f = sin(X[0])*cos(X[1])  # Finer f
 
-	ff = empty((m,m))
+	ff = empty((N[0],N[1]))
 	
 	ff = FourierChebyshevInterpolation2D(fn,ff)
 	
@@ -88,19 +96,37 @@ if __name__ == "__main__":
 	plt.show() 
 	
     elif test == "3D":
-	T = meshgrid(u,v,v, indexing='ij')
-	X = meshgrid(x,y,y, indexing='ij')
+	m = 5; M = 8 # Number of nodes for the coarse and the finer grid, respectively
+	n = array([2**m, 2**(m-1), 2**(m-2)])
+	N = array([2**M, 2**(M-1), 2**(M-2)])
+	L = array([2., 2*pi, 4*pi])
+	
+	points = arange(n[0]+1)
+
+	u = cos(pi*points/n[0])       # Grid points in x-direction
+	v = linspace(0,2*pi,n[1]+1)   # Grid points in y-direction
+	w = linspace(0,4*pi,n[2]+1)   # Grid points in z-direction
+	
+	x = linspace(-1.,1.,N[0])
+	y = linspace(0,L[1],N[1]+1)
+        z = linspace(0,L[2],N[2]+1)
+        
+	c = ones(n[0]-1)
+	c = hstack([.5,c,.5])
+	c *= (-1)**points
+	
+	T = meshgrid(u,v,w, indexing='ij')
+	X = meshgrid(x,y,z, indexing='ij')
 	
 	fn = sin(T[0])*cos(T[1])*cos(T[2])
 	f = sin(X[0])*cos(X[1])*cos(X[2])
-	fv = empty((m,m,m))
+	fv = empty((N[0],N[1],N[2]))
 
 	fv = FourierChebyshevInterpolation3D(fn, fv)
 	e = fv - f[:,:-1,:-1] 
 	error = linalg.norm(e[:,:,-1], inf)
 	assert allclose(fv, f[:,:-1,:-1])
 	print "error: ", error
-
 
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')

@@ -30,45 +30,46 @@ def FourierInterpolation1D(f, fv):
     return fv
 
 def FourierInterpolation2D(f, fv):
-    N = fv.shape[0]
-    n = f.shape[0]-1
+    N = fv.shape
+    n = f.shape 
     indices = []
-    for i in range(n):
-	index = int(i*(float(N-1)/float(n-1)))
+    for i in range(n[1]):
+	index = int(i*(float(N[1]-1)/float(n[1]-1)))
 	indices += [index]
-	fv[:, index] = real(evaliptrig(f[:-1, i], N))
-    for i in range(N):
-	fv[i, :] = real(evaliptrig(fv[i, indices], N))      
+	fv[:, index] = real(evaliptrig(f[:, i], N[0]))	
+    for i in range(N[0]):
+	fv[i, :] = real(evaliptrig(fv[i, indices], N[1]))      
     return fv
 
 def FourierInterpolation3D(f, fv):
-    N = fv.shape[0]
-    n = f.shape[0]
+    N = fv.shape
+    n = f.shape
     indices = []
-    for i in range(n-1):
-	index = int(i*(float(N-1)/float(n-2)))
+    for i in range(n[2]):
+	index = int(i*(float(N[2]-1)/float(n[2]-1)))
 	indices += [index]
-	fv[:,:,index] = FourieInterpolation2D(f[:,:,i], fv[:,:,index])
-    for i in range(N):
-	for j in range(N):
-	    fv[i,j,:] = real(evaliptrig(fv[i,j,indices], N))  
+	fv[:,:,index] = FourierInterpolation2D(f[:,:,i], fv[:,:,index])	
+    for i in range(N[0]):
+	for j in range(N[1]):
+	    fv[i,j,:] = real(evaliptrig(fv[i,j,indices], N[2]))  
     return fv
 
 
 if __name__ == "__main__":
     
-    test = "3D"
-    n = 2**5 # Number of nodes for the coarse grid
-    N = 2**8 # Number of nodes for the finer grid
-    t = linspace(0, 2*pi, n+1) # Coarse grid
-    x = linspace(0, 2*pi, N+1) # Finer grid
+    test = "1D"
     
     if test == "1D":
+	n = 2**5 # Number of nodes for the coarse grid
+	N = 2**8 # Number of nodes for the finer grid
+	t = linspace(0, 2*pi, n+1) # Coarse grid
+	x = linspace(0, 2*pi, N+1) # Finer grid
+    
 	fn = sin(t)
 	f = sin(x)
 	fv = empty(N)
 	
-	fv = FourieInterpolation1D(fn[:-1], fv)
+	fv = FourierInterpolation1D(fn[:-1], fv)
 	
 	e = fv - f[:-1]
         error = linalg.norm(e, inf)
@@ -78,15 +79,26 @@ if __name__ == "__main__":
 	plt.show()
 	
     elif test == "2D":
-	T = meshgrid(t, t, indexing='ij')
-	X = meshgrid(x, x, indexing='ij')
+	m = 5; M = 8
+	n = array([2**m, 2**(m-1)])
+	N = array([2**M, 2**(M-1)])
+	L = array([2*pi, 4*pi])
+	
+	x = arange(n[0], dtype=float)*L[0]/n[0]
+        y = arange(n[1], dtype=float)*L[1]/n[1]
+
+        xx = linspace(0, L[0], N[0]+1) # Finer grid
+	yy = linspace(0, L[1], N[1]+1) # Finer grid
+	
+	T = meshgrid(x, y, indexing='ij')
+	X = meshgrid(xx, yy, indexing='ij')
 	
 	fn = sin(T[0])*cos(T[1])
-	f = sin(X[0])*cos(X[1])
-	fv = empty((N,N))
-
-	fv = FourieInterpolation2D(fn, fv)
-	e = fv - f[:-1,:-1] 
+	ff = sin(X[0])*cos(X[1])
+	fv = empty((N[0],N[1]))
+	
+	fv = FourierInterpolation2D(fn, fv)
+	e = fv - ff[:-1,:-1] 
 	error = linalg.norm(e, inf)
 	print "error: ", error
 
@@ -101,17 +113,30 @@ if __name__ == "__main__":
 	plt.show()
 	
     elif test == "3D":
-	T = meshgrid(t,t,t, indexing='ij')
-	X = meshgrid(x,x,x, indexing='ij')
+	m = 5; M = 8
+	n = array([2**m, 2**(m-1), 2**(m-2)])
+	N = array([2**M, 2**(M-1), 2**(M-2)])
+	L = array([2*pi, 4*pi, 2*pi])
+	
+	x = arange(n[0], dtype=float)*L[0]/n[0]
+        y = arange(n[1], dtype=float)*L[1]/n[1]
+        z = arange(n[2], dtype=float)*L[2]/n[2]
+        
+        xx = linspace(0, L[0], N[0]+1) # Finer grid
+	yy = linspace(0, L[1], N[1]+1) # Finer grid
+	zz = linspace(0, L[2], N[2]+1) # Finer grid	
+	
+	T = meshgrid(x, y, z, indexing='ij')
+	X = meshgrid(xx, yy, zz, indexing='ij')
 	
 	fn = sin(T[0])*cos(T[1])*cos(T[2])
-	f = sin(X[0])*cos(X[1])*cos(X[2])
-	fv = empty((N,N,N))
+	ff = sin(X[0])*cos(X[1])*cos(X[2])
+	fv = empty((N[0],N[1],N[2]))
 
-	fv = FourieInterpolation3D(fn, fv)
-	e = fv - f[:-1,:-1,:-1] 
-	error = linalg.norm(e[:,:,-1], inf)
-	assert allclose(fv, f[:-1,:-1,:-1])
+	fv = FourierInterpolation3D(fn, fv)
+	e = fv - ff[:-1,:-1,:-1] 
+	error = linalg.norm(e[:,:,1], inf)
+	assert allclose(fv, ff[:-1,:-1,:-1])
 	print "error: ", error
 
 

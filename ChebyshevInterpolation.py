@@ -32,7 +32,7 @@ def ChebInterpXdir(n, N, x, t, c, f, ff):
     ff[jj] = f[-(ii+1)]
     return ff
 
-def ChebInterpYdir(n,N,ff):
+def ChebInterpYdir(n,N,x,t,c,ff):
     numer = zeros(N)
     denom = zeros(N)
     exact = zeros(N)
@@ -71,43 +71,44 @@ def ChebyshevInterpolation1D(f, ff):
     return ff
 
 def ChebyshevInterpolation2D(f, ff):
-    n = f.shape[0]-1
-    N = ff.shape[0]
-    for i in range(n+1):
-	index = int(i*(float(N-1)/float(n)))
-	ff[:,index] = ChebInterpXdir(n,N,f[:,i],ff[:,index])
-    for i in range(N):
-	ff[i,:] = ChebInterpYdir(n,N,ff[i,:])
+    n = f.shape
+    N = ff.shape
+    for i in range(n[1]):
+	index = int(i*(float(N[1]-1)/float(n[1]-1)))
+	ff[:,index] = ChebInterpXdir(n[0]-1,N[0],xx,x,cx,f[:,i],ff[:,index])
+    for i in range(N[0]):
+	ff[i,:] = ChebInterpYdir(n[1]-1,N[1],yy,y,cy,ff[i,:])
     return ff
 
 def ChebyshevInterpolation3D(f, ff):
-    n = f.shape[0]-1
-    N = ff.shape[0]
+    n = f.shape
+    N = ff.shape
     indices = []
-    for i in range(n+1):
-	index = int(i*(float(N-1)/float(n)))
+    for i in range(n[2]):
+	index = int(i*(float(N[2]-1)/float(n[2]-1)))
 	indices += [index]
 	fv[:,:,index] = ChebyshevInterpolation2D(f[:,:,i], fv[:,:,index])
-    for i in range(N):
-	for j in range(N):
-	    ff[i,j,:] = ChebInterpYdir(n,N,ff[i,j,:])
+    for i in range(N[0]):
+	for j in range(N[1]):
+	    ff[i,j,:] = ChebInterpYdir(n[2]-1,N[2],zz,z,cz,ff[i,j,:])
     return ff
 
 
 if __name__ == "__main__":
     
     test = "3D"
-    n = 2**5 # Number of nodes for the coarse grid
-    N = 2**8 # Number of nodes for the finer grid
-    points = arange(n+1)
-    t = cos(pi*points/n)     # Coarse grid
-    x = linspace(-1., 1., N) # Finer grid
     
-    c = ones(n-1)
-    c = hstack([.5,c,.5])
-    c *= (-1)**points
-
     if test == "1D":
+	n = 2**5 # Number of nodes for the coarse grid
+        N = 2**8 # Number of nodes for the finer grid
+        points = arange(n+1)
+        t = cos(pi*points/n)     # Coarse grid
+        x = linspace(-1., 1., N) # Finer grid
+        
+        c = ones(n-1)
+        c = hstack([.5,c,.5])
+        c *= (-1)**points
+    
 	fn = sin(t)
 	f = sin(x)
 	fv = empty(N)
@@ -123,12 +124,33 @@ if __name__ == "__main__":
 
 	
     elif test == "2D":
-	T = meshgrid(t, t, indexing='ij')
-	X = meshgrid(x, x, indexing='ij')
+	m = 5; M = 8
+	n = array([2**m, 2**(m-1)])
+	N = array([2**M, 2**(M-1)])
+	
+	pointsx = arange(n[0]+1)
+	pointsy = arange(n[1]+1)
+	
+        x = cos(pi*pointsx/n[0])     # Coarse grid
+        y = cos(pi*pointsy/n[1])     
+        
+        cx = ones(n[0]-1)
+        cx = hstack([.5,cx,.5])
+        cx *= (-1)**pointsx
+        
+        cy = ones(n[1]-1)
+        cy = hstack([.5,cy,.5])
+        cy *= (-1)**pointsy
+        
+        xx = linspace(-1., 1., N[0]) # Finer grid
+        yy = linspace(-1., 1., N[1])
+        
+	T = meshgrid(x,y, indexing='ij')
+	X = meshgrid(xx,yy, indexing='ij')
 	
 	fn = sin(T[0])*cos(T[1])
 	f  = sin(X[0])*cos(X[1])
-	fv = zeros((N,N))
+	fv = zeros((N[0],N[1]))
 
 	fv = ChebyshevInterpolation2D(fn, fv)
 	e = fv - f
@@ -146,19 +168,47 @@ if __name__ == "__main__":
 	plt.show()
 	
     elif test == "3D":
-	T = meshgrid(t,t,t, indexing='ij')
-	X = meshgrid(x,x,x, indexing='ij')
+	
+	m = 5; M = 8
+	n = array([2**m, 2**(m-1), 2**(m-2)])
+	N = array([2**M, 2**(M-1), 2**(M-2)])
+	
+	pointsx = arange(n[0]+1)
+	pointsy = arange(n[1]+1)
+	pointsz = arange(n[2]+1)
+	
+        x = cos(pi*pointsx/n[0])     # Coarse grid
+        y = cos(pi*pointsy/n[1])     
+        z = cos(pi*pointsz/n[2])     
+        
+        cx = ones(n[0]-1)           # Wight function
+        cx = hstack([.5,cx,.5])
+        cx *= (-1)**pointsx
+        
+        cy = ones(n[1]-1)
+        cy = hstack([.5,cy,.5])
+        cy *= (-1)**pointsy
+        
+        cz = ones(n[2]-1)
+        cz = hstack([.5,cz,.5])
+        cz *= (-1)**pointsz
+        
+        xx = linspace(-1., 1., N[0]) # Finer grid
+        yy = linspace(-1., 1., N[1]) 
+        zz = linspace(-1., 1., N[2]) 
+        
+	T = meshgrid(x, y, z, indexing='ij')
+	X = meshgrid(xx, yy, zz, indexing='ij')
 	
 	fn = sin(T[0])*cos(T[1])*cos(T[2])
 	f = sin(X[0])*cos(X[1])*cos(X[2])
-	fv = empty((N,N,N))
+	fv = empty((N[0],N[1],N[2]))
 
 	fv = ChebyshevInterpolation3D(fn, fv)
 	e = fv - f 
 	error = linalg.norm(e[:,:,-1], inf)
 	assert allclose(fv, f)
 	print "error: ", error
-
 
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')
